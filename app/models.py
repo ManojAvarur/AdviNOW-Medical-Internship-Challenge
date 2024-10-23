@@ -33,7 +33,6 @@ class Diagnostics(Base):
     business_id     = mapped_column(ForeignKey("business.id"), nullable=False)
     symptom_id      = mapped_column(ForeignKey("symptoms.id"), nullable=False)
     Diagnostics     = Column(Boolean, nullable=False)
-    # business_id     = Column(Integer, ForeignKey("business.id", ))
     created_at      = Column(DateTime(timezone=True), nullable=False, default=datetime.datetime.now)
     updated_at      = Column(DateTime(timezone=True), nullable=False, default=datetime.datetime.now)
     created_by      = Column(String(100), nullable=True, default="Developer")

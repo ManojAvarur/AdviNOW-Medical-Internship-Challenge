@@ -5,7 +5,7 @@ services:
     image: postgres:13.16-bookworm
     environment:
       POSTGRES_DB: postgres
-      POSTGRES_USER: user
+      POSTGRES_USER: root
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"                      

@@ -19,7 +19,7 @@ class Business(Base):
 # Holds Symptoms data
 class Symptoms(Base):
     __tablename__   = "symptoms"
-    id              = Column(String(100), primary_key=True)
+    id              = Column(Integer, primary_key=True)
     name            = Column(String(100), nullable=False)
     created_at      = Column(DateTime(timezone=True), nullable=False, default=datetime.datetime.now)
     updated_at      = Column(DateTime(timezone=True), nullable=False, default=datetime.datetime.now)

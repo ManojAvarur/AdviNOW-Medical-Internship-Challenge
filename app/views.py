@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import Select, bindparam, insert
 from utlis import business_data_ctrl, symptoms_data_ctrl
 from sqlalchemy.dialects import postgresql
+from data_controller import DataController, ValueError
 
 router = APIRouter()
 
@@ -37,22 +38,7 @@ def csv_to_database(
         
         data = read_csv(file.file).to_dict(orient="index")
 
-        business_data       = db.execute(Select(Business.id).order_by(Business.id)).all()
-        symptoms_data       = db.execute(Select(Symptoms.id).order_by(Symptoms.id)).all()
-        diagnostics_data    = db.execute(Select(Diagnostics.id, Diagnostics.business_id, Diagnostics.symptom_id)).all()
-
-        data_controller = {
-            "data_to_update": {
-                "business_data": [],
-                "symptoms_data": [],
-                "diagnostics_data": []
-            },
-            "data_to_insert": {
-                "business_data": [],
-                "symptoms_data": [],
-                "diagnostics_data": []
-            }
-        }
+        data_controller = DataController(db)
 
         for i in data:
             # User Uploaded Data
@@ -64,12 +50,14 @@ def csv_to_database(
             symptom_diagnostic_str :str  = data[i]["Symptom Diagnostic"]
             symptom_diagnostic :bool     = symptom_diagnostic_str.lower() in ["yes", "true", "y", "1"]
 
-            business_data_ctrl(business_id, business_name, data_controller, business_data)
-            symptoms_data_ctrl(symptom_code, symptom_name, data_controller, symptoms_data)
+            data_controller.add_data(Business(id=business_id, name=business_name))
+            data_controller.add_data(Symptoms(id=symptom_code, name=symptom_name))
+            data_controller.add_data(Diagnostics(business_id=business_id, symptom_id=symptom_code, Diagnostics=symptom_diagnostic))
 
-        stmt = insert(Business).values(data_controller["data_to_insert"]["business_data"])
-        
-        print("\n\n\nStmt: ", str(stmt.compile(dialect=postgresql.dialect())))
+
+        data_controller.upsert_business_data()
+        data_controller.upsert_symptoms_data()
+        data_controller.upsert_diagnostics_data()
 
         return data_controller
     # except Exception as e:

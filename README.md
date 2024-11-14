@@ -8,12 +8,12 @@ Below are all the tasks/expectations required to complete this challenge. These 
 
 **Please organize these tasks and update the ReadMe based on the order you complete them!**
 
-✅ Create a virtual environment and install the requirements - "requirements\requirements.txt"
-✅ Create data models - example with sqlalchemy in "app\models.py" 
-✅ Design a database mock up based on the provided data - "app\data\business_symptom_data.csv"
-✅ Generate migration script and run migration to create database tables - alembic files provided
-  ✅ To create a migration file: "alembic revision --autogenerate -m some_comment"
-  ✅ To update database with migration file: "alembic upgrade head"
+- ✅ Create a virtual environment and install the requirements - "requirements\requirements.txt"
+- ✅ Create data models - example with sqlalchemy in "app\models.py" 
+- ✅ Design a database mock up based on the provided data - "app\data\business_symptom_data.csv"
+- ✅ Generate migration script and run migration to create database tables - alembic files provided
+  - ✅ To create a migration file: "alembic revision --autogenerate -m some_comment"
+  - ✅ To update database with migration file: "alembic upgrade head"
 - Create an endpoint for importing a CSV file into the database 
   - The only requirement is the endpoint requires a CSV file. If needed, other parameters can be used.
 - Create an endpoint that returns business and symptom data

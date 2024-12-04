@@ -1,24 +1,30 @@
-from fastapi import APIRouter, Response, UploadFile, File, Depends
+from fastapi import APIRouter, Response, UploadFile, File, Depends, Query
 from fastapi.responses import RedirectResponse, JSONResponse
-from typing import Annotated, Literal, Optional
+from typing import Annotated, Literal, Optional, Union
 from models import Business, Symptoms, Diagnostics
 from pandas import read_csv
 from database import db_instance
 from sqlalchemy.orm import Session
-from sqlalchemy import Select, bindparam, insert
-from utlis import business_data_ctrl, symptoms_data_ctrl
-from sqlalchemy.dialects import postgresql
+from sqlalchemy import Select
+from utlis import DiagnosisOption
 from data_controller import DataController, ValueError
 
 router = APIRouter()
 
 @router.get('/')
 def redirect_to_docs():
+    """
+    Redirects request /docs
+    """
     return RedirectResponse("/docs")
 
 @router.get('/status')
-async def get_status(res: Response):
+def get_status(res: Response, db: Session = Depends(db_instance)):
+    """
+    Returns the health / status of the system
+    """
     try:
+        db.execute(Select(Business.id).limit(1))
         return { "status": "Health OK" }
     except Exception as e:
         res.status_code = 500
@@ -29,7 +35,10 @@ def csv_to_database(
     file: Optional[Annotated[UploadFile, File(...,media_type="text/csv")]],
     db: Session = Depends(db_instance)
 ):
-    # try:
+    """
+    Parses the provided CSV file and uploades the data into database
+    """
+    try:
         if not file or file.headers["content-type"] != "text/csv":
             return JSONResponse(
                 content = { "error": "Please select a .csv file!" },
@@ -54,14 +63,51 @@ def csv_to_database(
             data_controller.add_data(Symptoms(id=symptom_code, name=symptom_name))
             data_controller.add_data(Diagnostics(business_id=business_id, symptom_id=symptom_code, Diagnostics=symptom_diagnostic))
 
-
         data_controller.upsert_business_data()
         data_controller.upsert_symptoms_data()
         data_controller.upsert_diagnostics_data()
 
-        return data_controller
-    # except Exception as e:
-    #     return JSONResponse(
-    #         content = { "error": f"Error:  {str(e)}" },
-    #         status_code = 400
-    #     )
+        return JSONResponse(
+            content={
+                "message": "CSV Parsed Successfully!"
+            },
+            status_code=200
+        )
+    except Exception as e:
+        return JSONResponse(
+            content = { "error": f"Error:  {str(e)}" },
+            status_code = 400
+        )
+    
+@router.get('/fetch-data')
+def fetch_data(business_id: Optional[str] = None, diagnosis: DiagnosisOption = Query(default=None), db: Session = Depends(db_instance)):
+    """
+    Fetches data from the database based on the provided parameters:
+    1. If only a business ID is given, all diagnoses for that business ID are returned.
+    2. If no diagnosis filter is provided, all diagnoses are returned; otherwise, the data is filtered based on the provided criteria.
+    """
+
+    to_query = Select(
+        Business.id.label("business_id"),
+        Business.name.label("business_name"),
+        Symptoms.id.label("symptom_id"),
+        Symptoms.id.label("symptom_name"),
+        Diagnostics.Diagnostics.label("diagnosis")
+    ).join(
+        Business, Diagnostics.business_id == Business.id
+    ).join(
+        Symptoms, Diagnostics.symptom_id == Symptoms.id
+    )
+
+    if business_id != None and len(business_id.strip()) > 0:
+        to_query = to_query.where(Business.id == business_id.strip())
+
+    if diagnosis != None:
+        to_query = to_query.where(Diagnostics.Diagnostics == (diagnosis == DiagnosisOption.Yes))
+
+    print("\n\n\n", db.execute(to_query).all(), "\n\n")
+    
+    return {"to_query": str(to_query)}
+    # exit(0);
+
+

@@ -4,10 +4,7 @@ from typing import List, Dict, Tuple
 from enum import Enum
 from sqlalchemy.orm import Session
 from sqlalchemy import Select, Sequence, Row, Update
-
-class Types(Enum):
-    INSERT = "INSERT"
-    UPDATE = "UPDATE"
+from utlis import Types
 
 class ValueError(Exception):
     """Custom Exception"""
@@ -15,14 +12,14 @@ class ValueError(Exception):
 
 class DataController:
     # Holds DB Queried Data
-    _business_db_data:     Tuple[str]   = None  # Holds Business Ids from DB
-    _symptoms_db_data:     Tuple[str]   = None  # Holds Symptoms Ids from DB
-    _diagnostics_db_data:  Tuple[str]   = None  # Holds Combination of Business, Symptom & Diagnostics Ids from DB
+    _business_db_data:     Tuple[str]       = None  # Holds Business Ids from DB
+    _symptoms_db_data:     Tuple[str]       = None  # Holds Symptoms Ids from DB
+    _diagnostics_db_data:  Dict[str, str]   = None  # Holds Combination of Business, Symptom & Diagnostics Ids from DB
 
     # Holds data which are to be processed in either INSERT / UPDATE state
-    _business_data_to_proc: Dict[Types, Dict[str, Business]]         
-    _symptoms_data_to_proc: Dict[Types, Dict[str, Symptoms]] 
-    _diagnostics_data_to_proc: Dict[Types, Dict[str, Diagnostics]] 
+    _business_data_to_proc:     Dict[Types, Dict[str, Business]]         
+    _symptoms_data_to_proc:     Dict[Types, Dict[str, Symptoms]] 
+    _diagnostics_data_to_proc:  Dict[Types, Dict[str, Diagnostics]] 
 
     def __init__(self, db: Session):
         """
@@ -37,6 +34,11 @@ class DataController:
         # Storing DB session for future use
         self.db = db
 
+        # Instantiating DB Store Values
+        self._business_db_data      = {}
+        self._symptoms_db_data      = {}
+        self._diagnostics_db_data   = {}
+
         # Instantiating Data Process Values
         self._business_data_to_proc     = { Types.INSERT: {}, Types.UPDATE: {} }
         self._symptoms_data_to_proc     = { Types.INSERT: {}, Types.UPDATE: {} }
@@ -45,7 +47,13 @@ class DataController:
         # Fetching currently exsiting data from DB
         self._business_db_data       = tuple(row[0] for row in db.execute(Select(Business.id).order_by(Business.id)))
         self._symptoms_db_data       = tuple(row[0] for row in db.execute(Select(Symptoms.id).order_by(Symptoms.id)))
-        self._diagnostics_db_data    = tuple(self.create_diagnostics_hash(row) for row in db.execute(Select(Diagnostics.id, Diagnostics.business_id, Diagnostics.symptom_id, Diagnostics.Diagnostics)))
+
+        diagnostics_data = db.execute(Select(Diagnostics.id, Diagnostics.business_id, Diagnostics.symptom_id, Diagnostics.Diagnostics))
+        for row in diagnostics_data:
+            self._diagnostics_db_data[self.create_diagnostics_hash(row)] = row.id
+
+        print(self._diagnostics_db_data.keys())
+        print(self._diagnostics_db_data.values())
 
         # print("business_db_data", self._business_db_data)
         # print("_symptoms_db_data", self._symptoms_db_data)
@@ -131,7 +139,7 @@ class DataController:
 
         if self.check_id_exists_in_db(diagnostic_hash, self._diagnostics_db_data) or \
             self.check_id_exists_in_cur_ins(value, self._diagnostics_data_to_proc):
-            self._diagnostics_data_to_proc[Types.UPDATE][value.id] = value
+            self._diagnostics_data_to_proc[Types.UPDATE][diagnostic_hash] = value
             return
         
         self._diagnostics_data_to_proc[Types.INSERT][diagnostic_hash] = value
@@ -161,9 +169,10 @@ class DataController:
         for row in self._business_data_to_proc[Types.UPDATE].values():
             row.updated_at = datetime.datetime.now()
             mappings.append(row.to_dict())
-            
-        self.db.bulk_update_mappings(Business, mappings)
-        self.db.commit()
+        
+        if len(mappings) > 0:
+            self.db.bulk_update_mappings(Business, mappings)
+            self.db.commit()
 
     def upsert_symptoms_data(self):
         """
@@ -173,18 +182,14 @@ class DataController:
             self.db.bulk_save_objects(self._symptoms_data_to_proc[Types.INSERT].values())
             self.db.commit()
 
-        # exit(0)
+        mappings = []
+        for row in self._symptoms_data_to_proc[Types.UPDATE].values():
+            row.updated_at = datetime.datetime.now()
+            mappings.append(row.to_dict())
         
-        # for row in self._symptoms_data_to_proc[Types.UPDATE].values():
-        #     stmt = (
-        #         Update(Symptoms)
-        #         .where(Symptoms.id == row.id) 
-        #         .values(name=row.name, updated_at=datetime.datetime.now()) 
-        #     )
-
-        #     self.db.execute(stmt) 
-
-        # self.db.commit()
+        if len(mappings) > 0:
+            self.db.bulk_update_mappings(Symptoms, mappings)
+            self.db.commit()
 
 
     def upsert_diagnostics_data(self):
@@ -193,4 +198,14 @@ class DataController:
         """
         if len(self._diagnostics_data_to_proc[Types.INSERT].values()) > 0:
             self.db.bulk_save_objects(self._diagnostics_data_to_proc[Types.INSERT].values())
+            self.db.commit()
+
+        mappings = []
+        for row in self._diagnostics_data_to_proc[Types.UPDATE].values():
+            row.updated_at = datetime.datetime.now()
+            row.id = self._diagnostics_db_data[self.create_diagnostics_hash(row)]
+            mappings.append(row.to_dict())
+        
+        if len(mappings) > 0:
+            self.db.bulk_update_mappings(Diagnostics, mappings)
             self.db.commit()

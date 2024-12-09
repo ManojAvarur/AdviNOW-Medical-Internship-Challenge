@@ -16,9 +16,9 @@ Below are all the tasks/expectations required to complete this challenge. These 
   - ✅ To update database with migration file: "alembic upgrade head"
 - ✅ Create an endpoint for importing a CSV file into the database 
   - ✅ The only requirement is the endpoint requires a CSV file. If needed, other parameters can be used.
-- Create an endpoint that returns business and symptom data
-  - Endpoint should take two optional parameters - business_id & diagnostic
-  - Endpoint should return Business ID, Business Name, Symptom Code, Symptom Name, and Symptom Diagnostic values based on filter
+- ✅ Create an endpoint that returns business and symptom data
+  - ✅ Endpoint should take two optional parameters - business_id & diagnostic
+  - ✅ Endpoint should return Business ID, Business Name, Symptom Code, Symptom Name, and Symptom Diagnostic values based on filter
 
 As a note, FastAPI, uvicorn, sqlalchemy, and alembic are not required to be used and may be changed if desired. 
 Any of the existing files or variables can be and may need to be changed or updated, please be prepared to explain changes on the follow-up call.

@@ -11,14 +11,14 @@ from data_controller import DataController, ValueError
 
 router = APIRouter()
 
-@router.get('/')
+@router.get('/', include_in_schema=False)
 def redirect_to_docs():
     """
     Redirects request /docs
     """
     return RedirectResponse("/docs")
 
-@router.get('/status')
+@router.get('/status', name="System status")
 def get_status(res: Response, db: Session = Depends(db_instance)):
     """
     Returns the health / status of the system
@@ -30,7 +30,7 @@ def get_status(res: Response, db: Session = Depends(db_instance)):
         res.status_code = 500
         return { "error": str(e) }
 
-@router.post('/csv-to-db')
+@router.post('/csv-to-db', name="CSV to database parser")
 def csv_to_database(
     file: Optional[Annotated[UploadFile, File(...,media_type="text/csv")]],
     db: Session = Depends(db_instance)
@@ -79,7 +79,7 @@ def csv_to_database(
             status_code = 400
         )
     
-@router.get('/fetch-data')
+@router.get('/fetch-data', name="Fetch data from database")
 def fetch_data(business_id: Optional[str] = None, diagnosis: DiagnosisOption = Query(default=None), db: Session = Depends(db_instance)):
     """
     Fetches data from the database based on the provided parameters:
@@ -91,7 +91,7 @@ def fetch_data(business_id: Optional[str] = None, diagnosis: DiagnosisOption = Q
         Business.id.label("business_id"),
         Business.name.label("business_name"),
         Symptoms.id.label("symptom_id"),
-        Symptoms.id.label("symptom_name"),
+        Symptoms.name.label("symptom_name"),
         Diagnostics.Diagnostics.label("diagnosis")
     ).join(
         Business, Diagnostics.business_id == Business.id
@@ -105,9 +105,19 @@ def fetch_data(business_id: Optional[str] = None, diagnosis: DiagnosisOption = Q
     if diagnosis != None:
         to_query = to_query.where(Diagnostics.Diagnostics == (diagnosis == DiagnosisOption.Yes))
 
-    print("\n\n\n", db.execute(to_query).all(), "\n\n")
-    
-    return {"to_query": str(to_query)}
-    # exit(0);
+    queried_data = db.execute(to_query)
+
+    parsed_data = [
+        {
+            "business_id"   : row.business_id,
+            "business_name" : row.business_name,
+            "symptom_id"    : row.symptom_id,
+            "symptom_name"  : row.symptom_name,
+            "diagnosis"     : row.diagnosis
+        }
+        for row in queried_data
+    ]
+
+    return JSONResponse(content=parsed_data)
 
 

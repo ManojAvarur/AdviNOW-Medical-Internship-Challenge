@@ -1,8 +1,8 @@
 from enum import Enum
 
 class DiagnosisOption(str, Enum):
-    Yes = True
-    No  = False
+    Yes = "Yes"
+    No  = "No"
 
 class Types(Enum):
     INSERT = "INSERT"
